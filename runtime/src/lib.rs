@@ -135,7 +135,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	//   `spec_version`, and `authoring_version` are the same between Wasm and native.
 	// This value is set to 100 to notify Polkadot-JS App (https://polkadot.js.org/apps) to use
 	//   the compatible custom types.
-	spec_version: 100,
+	spec_version: 101,
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -524,7 +524,7 @@ impl pallet_im_online::Config for Runtime {
 
 parameter_types! {
 	pub const AssetDeposit: Balance = 100 * currency::UNIT * currency::SUPPLY_FACTOR;
-	pub const ApprovalDeposit: Balance = 1 * currency::UNIT;
+	pub const ApprovalDeposit: Balance = 0;
 	pub const StringLimit: u32 = 50;
 	pub const MetadataDepositBase: Balance = currency::deposit(1, 68);
 	pub const MetadataDepositPerByte: Balance = currency::deposit(0, 1);
@@ -551,8 +551,8 @@ impl pallet_assets::Config<pallet_assets::Instance1> for Runtime {
 }
 
 parameter_types! {
-	pub const ClassDeposit: Balance = 100 * currency::UNIT;
-	pub const InstanceDeposit: Balance = 1 * currency::UNIT;
+	pub const ClassDeposit: Balance = 100 * currency::UNIT * currency::SUPPLY_FACTOR;
+	pub const InstanceDeposit: Balance = 1 * currency::UNIT * currency::SUPPLY_FACTOR;
 	pub const KeyLimit: u32 = 32;
 	pub const ValueLimit: u32 = 256;
 }
@@ -696,9 +696,19 @@ impl<F: FindAuthor<u32>> FindAuthor<H160> for FindAuthorTruncated<F> {
 	}
 }
 
+/// Current approximation of the gas/s consumption considering
+/// EVM execution over compiled WASM (on 4.4Ghz CPU).
+/// Given the 500ms Weight, from which 75% only are used for transactions,
+/// the total EVM execution gas limit is: GAS_PER_SECOND * 0.500 * 0.75 ~= 15_000_000.
+pub const GAS_PER_SECOND: u64 = 40_000_000;
+
+/// Approximate ratio of the amount of Weight per Gas.
+/// u64 works for approximations because Weight is a very small unit compared to gas.
+pub const WEIGHT_PER_GAS: u64 = WEIGHT_PER_SECOND / GAS_PER_SECOND;
+
 parameter_types! {
 	pub const ChainId: u64 = 1323;
-	pub BlockGasLimit: U256 = U256::from(u32::max_value());
+	pub BlockGasLimit: U256 = U256::from(NORMAL_DISPATCH_RATIO * MAXIMUM_BLOCK_WEIGHT / WEIGHT_PER_GAS);
 	pub PrecompilesValue: FrontierPrecompiles<Runtime> = FrontierPrecompiles::<_>::new();
 }
 
@@ -736,7 +746,7 @@ impl pallet_dynamic_fee::Config for Runtime {
 
 frame_support::parameter_types! {
 	pub IsActive: bool = true;
-	pub DefaultBaseFeePerGas: U256 = U256::from(1_000_000_000);
+	pub DefaultBaseFeePerGas: U256 = (1 * currency::MEGAWEI * currency::SUPPLY_FACTOR).into();
 }
 
 pub struct BaseFeeThreshold;
